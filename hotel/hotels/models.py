@@ -1,4 +1,6 @@
 from random import choices
+from tkinter.constants import CASCADE
+
 from django.db import models
 from phonenumber_field.modelfields import PhoneNumberField
 from multiselectfield import MultiSelectField
@@ -12,7 +14,7 @@ class Profile(AbstractUser):
         default=18, null=True, blank=True,
         validators=[MinValueValidator(18), MaxValueValidator(70)]
     )
-    phone_number = PhoneNumberField(region='', null=True, blank=True)
+    phone_number = PhoneNumberField( null=True, blank=True)
     STATUS_CHOICES = (
         ('owner', 'Owner'),
         ('client', 'Client')
@@ -48,28 +50,60 @@ class Hotel(models.Model):
     def __str__(self):
         return self.hotel_name
 
+
 class Room(models.Model):
-    hotel = models.ForeignKey(Hotel, related_name='rooms', on_delete=models.CASCADE)
-    price=models.PositiveSmallIntegerField(default=0)
-    BRON_CHOICES = (
-        ('свободен', 'свободен'),
-        ('забронирован', 'забронирован'),
-        ('занят', 'занят'),
-    )
-    bron = models.CharField(choices=BRON_CHOICES, max_length=15)
-    TYPES_CHOICES = (
+    hotel = models.ForeignKey(Hotel, related_name='room_hotel', on_delete=models.CASCADE)  # Изменён related_name
+    ROOM_CHOICES = (
         ('«Двухместный номер с 1 кроватью»', '«Двухместный номер с 1 кроватью»'),
         ('«Одноместный номер эконом-класса»', '«Одноместный номер эконом-класса»'),
         ('«Улучшенный люкс с кроватью размера «king-size»', '«Улучшенный люкс с кроватью размера «king-size»'),
         ('«Семейный номер»', '«Семейный номер»'),
     )
-    types = MultiSelectField(choices=TYPES_CHOICES)
+    types = MultiSelectField(max_length=100, choices=ROOM_CHOICES)
+    price = models.PositiveSmallIntegerField(default=0)
+    is_available = models.BooleanField(default=True)
     description = models.TextField()
-    user=models.ForeignKey(Profile, on_delete=models.CASCADE)
+    user = models.ManyToManyField(Profile)
+
+    def __str__(self):
+        return f'{self.hotel}-{self.types}'
+
+
+class Booking(models.Model):
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    room = models.ForeignKey(Room, on_delete=models.CASCADE,related_name='room_number')
+    BRON_CHOICES = (
+        ('свободен', 'свободен'),
+        ('забронирован', 'забронирован'),
+        ('занят', 'занят'),
+    )
+    status = models.CharField(max_length=100, choices=BRON_CHOICES)
+    ROOM_CHOICES = (
+        ('«Двухместный номер с 1 кроватью»', '«Двухместный номер с 1 кроватью»'),
+        ('«Одноместный номер эконом-класса»', '«Одноместный номер эконом-класса»'),
+        ('«Улучшенный люкс с кроватью размера «king-size»', '«Улучшенный люкс с кроватью размера «king-size»'),
+        ('«Семейный номер»', '«Семейный номер»'),
+    )
+    types = MultiSelectField(max_length=100, choices=ROOM_CHOICES)
+    user = models.ManyToManyField(Profile)
+
+    def save(self, *args, **kwargs):
+        if self.status == 'занят':
+            self.room.is_available = False
+        elif self.status == 'свободен':
+            self.room.is_available = True
+        elif self.status=='забронирован':
+            self.room.is_available=False
+        self.room.save()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.status}'
 
 
 class RoomPhotos(models.Model):
-    room = models.ForeignKey(Room, related_name='photos', on_delete=models.CASCADE)
+    room = models.ForeignKey(Room, related_name='room_photos', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='room_img/')
 
 
@@ -80,3 +114,5 @@ class Rating(models.Model):
     stars = models.IntegerField(choices=[(i, str(i)) for i in range(1, 6)], verbose_name="Рейтинг", null=True, blank=True)
     text = models.TextField(null=True, blank=True)
     created_date = models.DateTimeField(auto_now_add=True)
+
+

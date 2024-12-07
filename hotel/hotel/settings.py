@@ -34,6 +34,8 @@ INSTALLED_APPS = [
     'multiselectfield',
     'rest_framework_simplejwt',
     'django_filters',
+    'rest_framework_swagger',       # Swagger
+    'drf_yasg'
 ]
 
 MIDDLEWARE = [

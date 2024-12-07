@@ -27,4 +27,5 @@ admin.site.register(Hotel)
 admin.site.register(Profile)
 admin.site.register(Country)
 admin.site.register(Rating)
+admin.site.register(Booking)
 
